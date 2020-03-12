@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "board.h"
+#include "game_engine.h"
 
 MainWindow::MainWindow(QWidget *parent) :
   QMainWindow(parent),

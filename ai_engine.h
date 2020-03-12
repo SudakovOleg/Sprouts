@@ -17,10 +17,10 @@ struct point
   int posible_tie_count;
 };
 
-class Ai_engine
+class AiEngine
 {
 public:
-  Ai_engine();
+  AiEngine();
 private:
   int costFunction(QList<point> points);
 };

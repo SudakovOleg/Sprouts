@@ -26,12 +26,18 @@ CONFIG += c++11
 
 SOURCES += \
         ai_engine.cpp \
+        board.cpp \
+        game_engine.cpp \
         main.cpp \
-        mainwindow.cpp
+        mainwindow.cpp \
+        matrix.cpp
 
 HEADERS += \
         ai_engine.h \
-        mainwindow.h
+        board.h \
+        game_engine.h \
+        mainwindow.h \
+        matrix.h
 
 FORMS += \
         mainwindow.ui
