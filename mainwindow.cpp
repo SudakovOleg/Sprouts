@@ -8,6 +8,9 @@ MainWindow::MainWindow(QWidget *parent) :
   ui(new Ui::MainWindow)
 {
   ui->setupUi(this);
+  this->setFixedSize(550,550);
+  eng = new GameEngine(500,0);
+  ui->verticalLayout->addWidget(eng->getBoard());
 }
 
 MainWindow::~MainWindow()

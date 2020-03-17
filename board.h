@@ -3,6 +3,20 @@
 
 #include "matrix.h"
 #include <QWidget>
+#include <QMap>
+#include <QStack>
+
+struct forCancel
+{
+  QStack<QPoint> line;
+  QPoint point;
+  void clear()
+  {
+    line.clear();
+    point.rx() = 0;
+    point.ry() = 0;
+  }
+};
 
 class board : public QWidget
 {
@@ -14,6 +28,7 @@ public:
 private:
   void updateFromMatrix();
   void updateFromMatrix(Matrix& board);
+  void cancel();
 protected:
   void paintEvent(QPaintEvent *);
   void mousePressEvent(QMouseEvent *);
@@ -21,7 +36,9 @@ protected:
 
 private:
   Matrix *copy_board;
+  forCancel cancelList;
   bool clicked = false;
+  int lineCount = 1;
 };
 
 #endif // BOARD_H

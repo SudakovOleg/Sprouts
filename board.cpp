@@ -1,6 +1,7 @@
 #include "board.h"
 #include <QPainter>
 #include <QMessageBox>
+#include <QMouseEvent>
 
 board::board(QWidget *parent, int board_size, Matrix *board)
   : QWidget(parent)
@@ -18,11 +19,19 @@ board::~board()
 void board::updateFromMatrix()
 {
   QPainter pen(this);
-  pen.setPen(Qt::red);
   for(int i(0); i < copy_board->size().width(); i++)
     for (int j(0); j < copy_board->size().height(); j++)
     {
-      pen.drawPoint(i,j);
+      if(*copy_board->take(i,j) == 1)
+      {
+        pen.setPen(QPen(Qt::red, 10, Qt::SolidLine, Qt::RoundCap));
+        pen.drawPoint(i,j);
+      }
+      if(*copy_board->take(i,j) > 1)
+      {
+        pen.setPen(QPen(Qt::red, 5, Qt::SolidLine, Qt::RoundCap));
+        pen.drawPoint(i,j);
+      }
     }
 }
 
@@ -32,6 +41,20 @@ void board::updateFromMatrix(Matrix& board)
   update();
 }
 
+void board::cancel()
+{
+  for(auto elm : cancelList.line)
+  {
+    *copy_board->take(elm.x(),elm.y()) = 0;
+  }
+  if(!cancelList.point.isNull())
+  {
+    *copy_board->take(cancelList.point.x(),cancelList.point.y()) = 0;
+  }
+  cancelList.clear();
+  clicked = false;
+}
+
 void board::paintEvent(QPaintEvent *)
 {
   updateFromMatrix();
@@ -39,10 +62,36 @@ void board::paintEvent(QPaintEvent *)
 
 void board::mousePressEvent(QMouseEvent *event)
 {
-  return;
+  Q_UNUSED(event);
+  if(clicked) cancel();
+  else
+  {
+    clicked = true;
+    lineCount += 1;
+  }
 }
 
 void board::mouseMoveEvent(QMouseEvent *event)
 {
-  return;
+  if(clicked && event->x() < copy_board->size().width() && event->y() < copy_board->size().height())
+  {
+    int tX = event->x();
+    int tY = event->y();
+    if(*copy_board->take(tX,tY) == 0)
+    {
+      *copy_board->take(tX,tY) = lineCount;
+      QPoint p(tX,tY);
+      cancelList.line.push_back(p);
+    }
+    else if(*copy_board->take(tX,tY) == 1)
+    {
+      clicked = false;
+      cancelList.clear();
+    }
+    else if(*copy_board->take(tX,tY) < lineCount && lineCount > 1)
+      cancel();
+    update();
+  }
+  else
+    return;
 }
