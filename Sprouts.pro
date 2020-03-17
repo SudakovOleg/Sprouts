@@ -27,7 +27,6 @@ CONFIG += c++11
 SOURCES += \
         ai_engine.cpp \
         board.cpp \
-        game_engine.cpp \
         main.cpp \
         mainwindow.cpp \
         matrix.cpp
@@ -35,7 +34,6 @@ SOURCES += \
 HEADERS += \
         ai_engine.h \
         board.h \
-        game_engine.h \
         mainwindow.h \
         matrix.h
 

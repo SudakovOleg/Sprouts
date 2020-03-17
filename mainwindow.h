@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "game_engine.h"
+#include "board.h"
 
 namespace Ui {
   class MainWindow;
@@ -18,7 +18,7 @@ public:
 
 private:
   Ui::MainWindow *ui;
-  GameEngine *eng;
+  board *boardWdget;
 };
 
 #endif // MAINWINDOW_H

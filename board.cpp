@@ -3,95 +3,184 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 
-board::board(QWidget *parent, int board_size, Matrix *board)
-  : QWidget(parent)
+#define EPS 6
+#define EMPTY_CELL 0
+#define POINT_CELL 1
+
+//Конструктор
+board::board(QWidget *parent, int board_size, int ai_lvl)
+    : QWidget(parent)
 {
-  this->setMouseTracking(true);
-  copy_board = new Matrix(board_size,board_size);
-  copy_board = board;
+    Q_UNUSED(ai_lvl);
+    //Включаем отслеживание мыши для рисования
+    this->setMouseTracking(true);
+    //Создаем матрицу и заполняем начальными данными
+    board_matrix = new Matrix(board_size,board_size);
+    for(int i(board_size/2 - 50); i < board_size/2 + 100; i += 100)
+        for(int j(board_size/2 - 50); j < board_size/2 + 100; j += 100)
+            addPoint(i,j);
 }
 
+//Диструктор
 board::~board()
 {
-  delete copy_board;
+    //Удаляем матрицу
+    delete board_matrix;
 }
 
+//Обновляем поля из матрицы
 void board::updateFromMatrix()
 {
-  QPainter pen(this);
-  for(int i(0); i < copy_board->size().width(); i++)
-    for (int j(0); j < copy_board->size().height(); j++)
-    {
-      if(*copy_board->take(i,j) == 1)
-      {
-        pen.setPen(QPen(Qt::red, 10, Qt::SolidLine, Qt::RoundCap));
-        pen.drawPoint(i,j);
-      }
-      if(*copy_board->take(i,j) > 1)
-      {
-        pen.setPen(QPen(Qt::red, 5, Qt::SolidLine, Qt::RoundCap));
-        pen.drawPoint(i,j);
-      }
-    }
+    //Создаем инструмент рисования
+    QPainter pen(this);
+    //Отрисовываем в зависимости от объекта
+    for(int i(0); i < board_matrix->size().width(); i++)
+        for (int j(0); j < board_matrix->size().height(); j++)
+        {
+            //Отрисовка точки
+            if(*board_matrix->take(i,j) == POINT_CELL)
+            {
+                pen.setPen(QPen(Qt::red, 10, Qt::SolidLine, Qt::RoundCap));
+                pen.drawPoint(i,j);
+            }
+            //Отрисовка ростка
+            if(*board_matrix->take(i,j) > POINT_CELL)
+            {
+                pen.setPen(QPen(Qt::blue, 5, Qt::SolidLine, Qt::RoundCap));
+                pen.drawPoint(i,j);
+            }
+        }
 }
 
-void board::updateFromMatrix(Matrix& board)
+//Метод добавления точки
+void board::addPoint(int x, int y, int sprouts)
 {
-  copy_board = &board;
-  update();
+    //Создаем точку
+    GamePoint *p = new GamePoint;
+    //Хаполняем её данными
+    p->point.rx() = x;
+    p->point.ry() = y;
+    p->sproutsCount = sprouts;
+    //Кладем в список
+    points.push_back(p);
+    //Регестрируем в матрице с небольшими отступами для простаты привязки
+    *board_matrix->take(x,y) = POINT_CELL;
+    for(int dX(-1); dX < 2; dX++)
+        for (int dY(-1);dY < 2; dY++)
+        {
+                *board_matrix->take(x+dX,y+dY) = POINT_CELL;
+        }
 }
 
+GamePoint *board::findPoint(int x, int y)
+{
+    for(auto elm : points)
+    {
+        if(std::abs(x - elm->point.x()) < EPS && std::abs(y - elm->point.y()) < EPS)
+        {
+            return elm;
+        }
+    }
+    return nullptr;
+}
+
+//Находит точку и проверяет возможность привязки
+bool board::isPosibleSprouts(int x, int y)
+{
+    GamePoint *p = findPoint(x,y);
+    if(p && p->sproutsCount < 3)return true;
+    return false;
+}
+
+//Метод отмены
 void board::cancel()
 {
-  for(auto elm : cancelList.line)
-  {
-    *copy_board->take(elm.x(),elm.y()) = 0;
-  }
-  if(!cancelList.point.isNull())
-  {
-    *copy_board->take(cancelList.point.x(),cancelList.point.y()) = 0;
-  }
-  cancelList.clear();
-  clicked = false;
+    //Отменяем все элементы попавшие в стек
+    for(auto elm : stkForCancel)
+    {
+        *board_matrix->take(elm.x(),elm.y()) = EMPTY_CELL;
+    }
+    //Очищаем данные для отмены
+    stkForCancel.clear();
+    //Снимаем нажатие
+    clicked = false;
+    update();
 }
 
+void board::safe()
+{
+    //Осуществляем добавление очков
+    startP->sproutsCount++;
+    finishP->sproutsCount++;
+}
+
+//Перерисовка объкта
 void board::paintEvent(QPaintEvent *)
 {
-  updateFromMatrix();
+    updateFromMatrix();
 }
 
+//Обработка события нажатия кнопки мыши
 void board::mousePressEvent(QMouseEvent *event)
 {
-  Q_UNUSED(event);
-  if(clicked) cancel();
-  else
-  {
-    clicked = true;
-    lineCount += 1;
-  }
+    bool isPosible = isPosibleSprouts(event->x(),event->y());
+    if(!isPosible && !partSetPointFlag)
+    {
+        cancel();
+    }
+    else if(!clicked && !partSetPointFlag && isPosible)
+    {
+        startP = findPoint(event->x(),event->y());
+        clicked = true;
+        lineCount += 1;
+    }
+    else if(clicked && !partSetPointFlag && isPosible)
+    {
+        finishP = findPoint(event->x(),event->y());
+        partSetPointFlag = true;
+        clicked = false;
+    }
+    else if(!clicked && partSetPointFlag && !isPosible)
+    {
+        for(int dX(-EPS/2); dX < EPS/2; dX++)
+            for (int dY(-EPS/2);dY < EPS/2; dY++)
+                if(*board_matrix->take(event->x() + dX,event->y() + dY) == lineCount)
+                {
+                    addPoint(event->x(),event->y(),2);
+                    safe();
+                    finishP = nullptr;
+                    startP = nullptr;
+                    stkForCancel.clear();
+                    partSetPointFlag = false;
+                    break;
+                }
+        update();
+    }
 }
-
+//Обработка события движения мыши
 void board::mouseMoveEvent(QMouseEvent *event)
 {
-  if(clicked && event->x() < copy_board->size().width() && event->y() < copy_board->size().height())
-  {
-    int tX = event->x();
-    int tY = event->y();
-    if(*copy_board->take(tX,tY) == 0)
+    //Если мышь не за границами окна
+    if(event->x() < board_matrix->size().width()
+            && event->y() < board_matrix->size().height()
+            && event->x() > 0 && event->y() > 0)
     {
-      *copy_board->take(tX,tY) = lineCount;
-      QPoint p(tX,tY);
-      cancelList.line.push_back(p);
+        //Если было нажатие
+        if(clicked)
+        {
+            int tX = event->x();
+            int tY = event->y();
+            if(*board_matrix->take(tX,tY) == EMPTY_CELL)
+            {
+                *board_matrix->take(tX,tY) = lineCount;
+                QPoint p(tX,tY);
+                stkForCancel.push_back(p);
+            }
+            else if(*board_matrix->take(tX,tY) < lineCount && lineCount > POINT_CELL)
+                cancel();
+            update();
+        }
+        else
+            return;
     }
-    else if(*copy_board->take(tX,tY) == 1)
-    {
-      clicked = false;
-      cancelList.clear();
-    }
-    else if(*copy_board->take(tX,tY) < lineCount && lineCount > 1)
-      cancel();
-    update();
-  }
-  else
-    return;
 }
