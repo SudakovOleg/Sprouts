@@ -28,6 +28,7 @@ private:
   GamePoint *findPoint(int x, int y);
   //void deletPoint(int x, int y); //Пока не нужна
   bool isPosibleSprouts(int x, int y);
+  bool isOverlapYourself(int x, int y);
   void cancel();
   void safe();
 protected:

@@ -3,7 +3,7 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 
-#define EPS 6
+#define EPS 7
 #define EMPTY_CELL 0
 #define POINT_CELL 1
 
@@ -37,18 +37,18 @@ void board::updateFromMatrix()
     for(int i(0); i < board_matrix->size().width(); i++)
         for (int j(0); j < board_matrix->size().height(); j++)
         {
-            //Отрисовка точки
-            if(*board_matrix->take(i,j) == POINT_CELL)
-            {
-                pen.setPen(QPen(Qt::red, 10, Qt::SolidLine, Qt::RoundCap));
-                pen.drawPoint(i,j);
-            }
-            //Отрисовка ростка
-            if(*board_matrix->take(i,j) > POINT_CELL)
-            {
-                pen.setPen(QPen(Qt::blue, 5, Qt::SolidLine, Qt::RoundCap));
-                pen.drawPoint(i,j);
-            }
+          //Отрисовка ростка
+          if(*board_matrix->take(i,j) > POINT_CELL)
+          {
+              pen.setPen(QPen(*board_matrix->take(i,j)%2 == 0 ? Qt::blue : Qt::green, 5, Qt::SolidLine, Qt::RoundCap));
+              pen.drawPoint(i,j);
+          }
+          //Отрисовка точки
+          if(*board_matrix->take(i,j) == POINT_CELL)
+          {
+            pen.setPen(QPen(Qt::red, 10, Qt::SolidLine, Qt::RoundCap));
+            pen.drawPoint(i,j);
+          }
         }
 }
 
@@ -63,10 +63,10 @@ void board::addPoint(int x, int y, int sprouts)
     p->sproutsCount = sprouts;
     //Кладем в список
     points.push_back(p);
-    //Регестрируем в матрице с небольшими отступами для простаты привязки
+    //Регестрируем в матрице с небольшими отступами для простоты привязки
     *board_matrix->take(x,y) = POINT_CELL;
-    for(int dX(-1); dX < 2; dX++)
-        for (int dY(-1);dY < 2; dY++)
+    for(int dX(-2); dX < 3; dX++)
+        for (int dY(-2);dY < 3; dY++)
         {
                 *board_matrix->take(x+dX,y+dY) = POINT_CELL;
         }
@@ -88,8 +88,19 @@ GamePoint *board::findPoint(int x, int y)
 bool board::isPosibleSprouts(int x, int y)
 {
     GamePoint *p = findPoint(x,y);
-    if(p && p->sproutsCount < 3)return true;
-    return false;
+    return p && p->sproutsCount < 3;
+}
+
+bool board::isOverlapYourself(int x, int y)
+{
+  for(int i(0); i < stkForCancel.size() - EPS; i++)
+  {
+      if(stkForCancel[i].x() == x && stkForCancel[i].y() == y)
+      {
+        return true;
+      }
+  }
+  return false;
 }
 
 //Метод отмены
@@ -104,6 +115,7 @@ void board::cancel()
     stkForCancel.clear();
     //Снимаем нажатие
     clicked = false;
+    lineCount -= 1;
     update();
 }
 
@@ -137,6 +149,13 @@ void board::mousePressEvent(QMouseEvent *event)
     else if(clicked && !partSetPointFlag && isPosible)
     {
         finishP = findPoint(event->x(),event->y());
+        if(finishP == startP && finishP->sproutsCount > 1)
+        {
+          cancel();
+          finishP = nullptr;
+          startP = nullptr;
+          return;
+        }
         partSetPointFlag = true;
         clicked = false;
     }
@@ -152,7 +171,8 @@ void board::mousePressEvent(QMouseEvent *event)
                     startP = nullptr;
                     stkForCancel.clear();
                     partSetPointFlag = false;
-                    break;
+                    update();
+                    return;
                 }
         update();
     }
@@ -176,7 +196,7 @@ void board::mouseMoveEvent(QMouseEvent *event)
                 QPoint p(tX,tY);
                 stkForCancel.push_back(p);
             }
-            else if(*board_matrix->take(tX,tY) < lineCount && lineCount > POINT_CELL)
+            else if((*board_matrix->take(tX,tY) < lineCount && *board_matrix->take(tX,tY) > POINT_CELL) || isOverlapYourself(tX,tY))
                 cancel();
             update();
         }
