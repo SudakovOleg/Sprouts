@@ -25,12 +25,15 @@ public:
 private:
   void updateFromMatrix();
   void addPoint(int x, int y, int sprouts = 0);
+  bool checkWin();
+  bool canCreatePath(int x, int y, const Matrix &m, GamePoint *FinishPoint);
   GamePoint *findPoint(int x, int y);
   //void deletPoint(int x, int y); //Пока не нужна
   bool isPosibleSprouts(int x, int y);
   bool isOverlapYourself(int x, int y);
   void cancel();
   void safe();
+  void initCosts(std::vector<int>& costs, int x, int y, Matrix &m);
 protected:
   void paintEvent(QPaintEvent *);
   void mousePressEvent(QMouseEvent *);
