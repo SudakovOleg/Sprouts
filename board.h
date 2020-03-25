@@ -32,18 +32,19 @@ public:
 private:
   void updateFromMatrix();
   void addPoint(int x, int y, int sprouts = 0);
-  bool checkWin(Matrix *m);
-  bool canCreatePath(int x, int y, Matrix &m, GamePoint *FinishPoint, int death = 0);
-  GamePoint *findPoint(int x, int y);
+  bool checkWin(Matrix *m, QList<GamePoint> _points);
+  bool canCreatePath(int x, int y, int line, Matrix &m, GamePoint *FinishPoint, const QList<GamePoint>& _points , int death = 0);
+  GamePoint findPoint(int x, int y, QList<GamePoint> _points);
   //void deletPoint(int x, int y); //Пока не нужна
   bool isPosibleSprouts(int x, int y);
   bool isOverlapYourself(int x, int y);
   void cancel();
   void safe();
   void initCosts(std::vector<int>& costs, int x, int y, Matrix &m);
+  void findPath(int x, int y, int line, int deph, Matrix &m, QList<GamePoint> &_points, QPoint finish);
 
-  int MINIMAX(Matrix &m, QList<GamePoint> points, int line, int deph, int alpha, int beta);
-  QList<PosibleMove> generatePosibleMoves(Matrix &m, QList<GamePoint> points);
+  int MINIMAX(Matrix &m, QList<GamePoint> _points, int line, int deph, int alpha, int beta);
+  QVector<PosibleMove> generatePosibleMoves(Matrix &m, QList<GamePoint> &_points, int line);
 protected:
   void paintEvent(QPaintEvent *);
   void mousePressEvent(QMouseEvent *);
@@ -55,7 +56,7 @@ private:
   QStack<QPoint> stkForCancel;
   bool clicked = false;
   bool partSetPointFlag = false;
-  QList<GamePoint*> points;
+  QList<GamePoint> points;
   GamePoint *startP, *finishP;
   int aiLevel;
 };

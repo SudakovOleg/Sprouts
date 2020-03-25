@@ -1,3 +1,5 @@
+#include <utility>
+
 #include "board.h"
 #include <QPainter>
 #include <QMessageBox>
@@ -57,11 +59,11 @@ void board::updateFromMatrix()
 void board::addPoint(int x, int y, int sprouts)
 {
   //Создаем точку
-  auto *p = new GamePoint;
+  GamePoint p;
   //Хаполняем её данными
-  p->point.rx() = x;
-  p->point.ry() = y;
-  p->sproutsCount = sprouts;
+  p.point.rx() = x;
+  p.point.ry() = y;
+  p.sproutsCount = sprouts;
   //Кладем в список
   points.push_back(p);
   //Регестрируем в матрице с небольшими отступами для простоты привязки
@@ -74,27 +76,27 @@ void board::addPoint(int x, int y, int sprouts)
 }
 
 //Метод проверки победы
-bool board::checkWin(Matrix *m)
+bool board::checkWin(Matrix *m, QList<GamePoint> _points)
 {
   //Создаем временную матрицу
   Matrix tmpM = *m;
   //Находим две доступные для хода точки
-  for(auto elm : points)
+  for(auto elm : _points)
   {
-    if(elm->sproutsCount < 3)
+    if(elm.sproutsCount < 3)
     {
-      for(auto finElm : points)
+      for(auto finElm : _points)
       {
-        if(elm != finElm && finElm->sproutsCount < 3)
+        if(&elm != &finElm && finElm.sproutsCount < 3)
         {
           //Ищем неприсоединеный край точки старта
           for(int dX(-3); dX < 4; dX++)
             for (int dY(-3);dY < 4; dY++)
             {
               //Если нашли пробуем строить путь между точками
-              if(*board_matrix->take(elm->point.x() + dX,elm->point.y() + dY) == EMPTY_CELL)
+              if(*board_matrix->take(elm.point.x() + dX,elm.point.y() + dY) == EMPTY_CELL)
               {
-                if(canCreatePath(elm->point.x() + dX,elm->point.y() + dY, tmpM, finElm))
+                if(canCreatePath(elm.point.x() + dX,elm.point.y() + dY,lineCount + 1, tmpM,&finElm,points))
                   return false;
               }
             }
@@ -106,10 +108,12 @@ bool board::checkWin(Matrix *m)
 }
 
 //Метод построения пути
-bool board::canCreatePath(int x, int y,Matrix &m, GamePoint *FinishPoint, int death)
+bool board::canCreatePath(int x, int y, int line,Matrix &m, GamePoint *FinishPoint, const QList<GamePoint>& _points, int death)
 {
   //Если мы у точки
-  if(findPoint(x,y) == FinishPoint)
+  GamePoint gp = findPoint(x,y,_points);
+  auto *p = &gp;
+  if(p && p->point == FinishPoint->point)
     return true;
 
   //Если глубина больше 2*размер поля
@@ -146,8 +150,8 @@ bool board::canCreatePath(int x, int y,Matrix &m, GamePoint *FinishPoint, int de
       {
         if(y - 1 > 0 && *m.take(x,y - 1) == 0)
         {
-          *m.take(x, y - 1) = lineCount;
-          if(canCreatePath(x,y - 1,m,FinishPoint, death + 1))
+          *m.take(x, y - 1) = line;
+          if(canCreatePath(x,y - 1,line,m,FinishPoint, _points, death + 1))
           {
             return true;
           }
@@ -159,8 +163,8 @@ bool board::canCreatePath(int x, int y,Matrix &m, GamePoint *FinishPoint, int de
       {
         if(y + 1 < m.size().height() && *m.take(x,y + 1) == 0)
         {
-          *m.take(x, y + 1) = lineCount;
-          if(canCreatePath(x,y + 1,m,FinishPoint, death + 1))
+          *m.take(x, y + 1) = line;
+          if(canCreatePath(x,y + 1,line,m,FinishPoint, _points,death + 1))
           {
             return true;
           }
@@ -172,8 +176,8 @@ bool board::canCreatePath(int x, int y,Matrix &m, GamePoint *FinishPoint, int de
       {
         if(x + 1 < m.size().width() && *m.take(x + 1,y) == 0)
         {
-          *m.take(x + 1,y) = lineCount;
-          if(canCreatePath(x + 1,y,m,FinishPoint, death + 1))
+          *m.take(x + 1,y) = line;
+          if(canCreatePath(x + 1,y,line,m,FinishPoint,_points, death + 1))
           {
             return true;
           }
@@ -185,8 +189,8 @@ bool board::canCreatePath(int x, int y,Matrix &m, GamePoint *FinishPoint, int de
       {
         if(x - 1 > 0 && *m.take(x - 1,y) == 0)
         {
-          *m.take(x - 1, y) = lineCount;
-          if(canCreatePath(x - 1,y,m,FinishPoint, death + 1))
+          *m.take(x - 1, y) = line;
+          if(canCreatePath(x - 1,y,line,m,FinishPoint,_points, death + 1))
           {
             return true;
           }
@@ -200,23 +204,23 @@ bool board::canCreatePath(int x, int y,Matrix &m, GamePoint *FinishPoint, int de
 }
 
 //Метод нахождения точки по координатам
-GamePoint *board::findPoint(int x, int y)
+GamePoint board::findPoint(int x, int y, QList<GamePoint> _points)
 {
-  for(auto elm : points)
+  for(auto elm : _points)
   {
-    if(std::abs(x - elm->point.x()) < EPS && std::abs(y - elm->point.y()) < EPS)
+    if(std::abs(x - elm.point.x()) < EPS && std::abs(y - elm.point.y()) < EPS)
     {
       return elm;
     }
   }
-  return nullptr;
+  return {};
 }
 
 //Находит точку и проверяет возможность привязки
 bool board::isPosibleSprouts(int x, int y)
 {
-  GamePoint *p = findPoint(x,y);
-  return p && p->sproutsCount < 3;
+  GamePoint gp = findPoint(x,y,points);
+  return gp.point.rx() > 0 && gp.sproutsCount < 3;
 }
 
 //Метод проверки пересечения линий самой себя
@@ -289,6 +293,38 @@ void board::initCosts(std::vector<int> &costs, int x, int y, Matrix &m)
   i = 0;
 }
 
+void board::findPath(int x, int y, int line, int deph, Matrix &m, QList<GamePoint> &_points, QPoint finish)
+{
+  if((std::abs(finish.x() - x) > 2*EPS && std::abs(finish.y() - y) > 2*EPS) || deph > 2*EPS)
+  {
+    if(rand()%100 < 30 || deph+1 > 2*EPS)
+    {
+      GamePoint p;
+      p.point.rx() = x;
+      p.point.ry() = y;
+      p.sproutsCount = 2;
+      //Кладем в список
+      _points.push_back(p);
+      //Регестрируем в матрице с небольшими отступами для простоты привязки
+      *m.take(x,y) = POINT_CELL;
+      for(int dX(-2); dX < 3; dX++)
+        for (int dY(-2);dY < 3; dY++)
+        {
+          *m.take(x+dX,y+dY) = POINT_CELL;
+        }
+      return;
+    }
+  }
+  if(*m.take(x+1,y) == line)
+    return findPath(x+1,y,line,deph+1,m,_points,finish);
+  if(*m.take(x-1,y) == line)
+    return findPath(x-1,y,line,deph+1,m,_points,finish);
+  if(*m.take(x,y+1) == line)
+    return findPath(x,y+1,line,deph+1,m,_points,finish);
+  if(*m.take(x,y-1) == line)
+    return findPath(x,y-1,line,deph+1,m,_points,finish);
+}
+
 //Перерисовка объкта
 void board::paintEvent(QPaintEvent *)
 {
@@ -307,14 +343,16 @@ void board::mousePressEvent(QMouseEvent *event)
   //Если нажато на точку для начала рисования ростка
   else if(!clicked && !partSetPointFlag && isPosible)
   {
-    startP = findPoint(event->x(),event->y());
+    GamePoint sp = findPoint(event->x(),event->y(),points);
+    startP = &sp;
     clicked = true;
     lineCount += 1;
   }
   //Если нажато на точку при рисований ростка
   else if(clicked && !partSetPointFlag && isPosible)
   {
-    finishP = findPoint(event->x(),event->y());
+    GamePoint fp = findPoint(event->x(),event->y(),points);
+    finishP = &fp;
     if(finishP == startP && finishP->sproutsCount > 1)
     {
       cancel();
@@ -339,7 +377,8 @@ void board::mousePressEvent(QMouseEvent *event)
           stkForCancel.clear();
           partSetPointFlag = false;
           update();
-          if(checkWin(board_matrix)) QMessageBox::information(this,"Win", "Win");
+          if(checkWin(board_matrix,points)) QMessageBox::information(this,"Win", "Win");
+          MINIMAX(*board_matrix,points,++lineCount,0,-10,10);
           return;
         }
     update();
@@ -375,14 +414,14 @@ void board::mouseMoveEvent(QMouseEvent *event)
   }
 }
 
-QList<PosibleMove> board::generatePosibleMoves(Matrix &m,QList<GamePoint> _points)
+QVector<PosibleMove> board::generatePosibleMoves(Matrix &m, QList<GamePoint> &_points, int line)
 {
-  QList<PosibleMove> moves;
-  for(auto elm : _points)
+  QVector<PosibleMove> moves;
+  for(auto &elm : _points)
   {
     if(elm.sproutsCount < 3)
     {
-      for(auto finElm : _points)
+      for(auto &finElm : _points)
       {
         if(&elm != &finElm && finElm.sproutsCount < 3)
         {
@@ -394,9 +433,9 @@ QList<PosibleMove> board::generatePosibleMoves(Matrix &m,QList<GamePoint> _point
             {
               Matrix tmpM = m;
               //Если нашли пробуем строить путь между точками
-              if(*board_matrix->take(elm.point.x() + dX,elm.point.y() + dY) == EMPTY_CELL)
+              if(*tmpM.take(elm.point.x() + dX,elm.point.y() + dY) == EMPTY_CELL)
               {
-                if(canCreatePath(elm.point.x() + dX,elm.point.y() + dY, tmpM, &finElm))
+                if(canCreatePath(elm.point.x() + dX,elm.point.y() + dY,line, tmpM, &finElm, _points))
                 {
                   breakeFlag = true;
 
@@ -405,8 +444,22 @@ QList<PosibleMove> board::generatePosibleMoves(Matrix &m,QList<GamePoint> _point
 
                   PosibleMove move;
                   move.m = tmpM;
-                  move.points = _points;
+                  for(auto p : _points)
+                  {
+                    GamePoint tmp;
+                    tmp.point = p.point;
+                    tmp.sproutsCount = p.sproutsCount;
+                    move.points.push_back(tmp);
+                  }
+
+                  //Ставим новую точку
+                  findPath(elm.point.x() + dX,elm.point.y() + dY,line,0,move.m,move.points,finElm.point);
+                  //Кладем в вектор
                   moves.push_back(move);
+
+                  elm.sproutsCount--;
+                  finElm.sproutsCount--;
+                  break;
                 }
               }
             }
@@ -423,19 +476,19 @@ QList<PosibleMove> board::generatePosibleMoves(Matrix &m,QList<GamePoint> _point
 int board::MINIMAX(Matrix &m, QList<GamePoint> _points, int line, int deph, int alpha, int beta)
 {
   //Если терминальная вершина
-  if(deph > aiLevel || checkWin(&m))
+  if(deph > aiLevel || checkWin(&m,_points))
     return deph%2 == 0 ? 1 : -1;
 
   //Генерация возможных ходов
-  QList<PosibleMove> posibleMoves(generatePosibleMoves(m,_points));
+  QVector<PosibleMove> posibleMoves(generatePosibleMoves(m,_points, line));
   //Инициализация переменной для рекорда
   int score;
   deph%2 == 0 ? score = alpha : score = beta;
-  PosibleMove *bestmove;
+  PosibleMove *bestmove = &posibleMoves.first();
   //Произведение хода и отправка алгоритма в рекурсию
-  for(auto move : posibleMoves)
+  for(auto &move : posibleMoves)
   {
-    //Рекурсионо определяем оенку хода
+    //Рекурсионо определяем оценку хода
     int new_score = MINIMAX(move.m, move.points, line + 1, deph + 1, alpha, beta);
 
     //Если макс
@@ -451,7 +504,7 @@ int board::MINIMAX(Matrix &m, QList<GamePoint> _points, int line, int deph, int 
       bestmove = &move;
     }
 
-    //Альфа бета отсичение
+    //Альфа бета отсечение
     if(deph%2 == 0)
       alpha = qMax(alpha,score);
     else
@@ -467,6 +520,7 @@ int board::MINIMAX(Matrix &m, QList<GamePoint> _points, int line, int deph, int 
   {
     m = bestmove->m;
     //Конвертирование и запоминание списка
+    points = bestmove->points;
   }
   //Возврат рекорда
   return score;

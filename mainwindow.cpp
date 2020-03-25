@@ -8,7 +8,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
   ui->setupUi(this);
   this->setFixedSize(250,250);
-  boardWdget = new board(this,200,0);
+  boardWdget = new board(this,200,2);
   ui->verticalLayout->addWidget(boardWdget);
 }
 
