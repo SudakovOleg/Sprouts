@@ -7,6 +7,7 @@
 class Matrix
 {
 public:
+  Matrix() = default;
   Matrix(int _m, int _n);
   int *take(int i, int j);
   void resize(int _m, int _n);

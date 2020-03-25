@@ -25,14 +25,12 @@ DEFINES += QT_DEPRECATED_WARNINGS
 CONFIG += c++11
 
 SOURCES += \
-        ai_engine.cpp \
         board.cpp \
         main.cpp \
         mainwindow.cpp \
         matrix.cpp
 
 HEADERS += \
-        ai_engine.h \
         board.h \
         mainwindow.h \
         matrix.h

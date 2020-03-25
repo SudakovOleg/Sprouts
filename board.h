@@ -1,8 +1,9 @@
+#include <utility>
+
 #ifndef BOARD_H
 #define BOARD_H
 
 #include "matrix.h"
-#include "ai_engine.h"
 #include <QWidget>
 #include <QMap>
 #include <QStack>
@@ -12,6 +13,12 @@ struct GamePoint
 {
   QPoint point;
   int sproutsCount;
+};
+
+struct PosibleMove
+{
+  Matrix m;
+  QList<GamePoint> points;
 };
 
 //Класс игрового поля
@@ -25,8 +32,8 @@ public:
 private:
   void updateFromMatrix();
   void addPoint(int x, int y, int sprouts = 0);
-  bool checkWin();
-  bool canCreatePath(int x, int y, const Matrix &m, GamePoint *FinishPoint, int death = 0);
+  bool checkWin(Matrix *m);
+  bool canCreatePath(int x, int y, Matrix &m, GamePoint *FinishPoint, int death = 0);
   GamePoint *findPoint(int x, int y);
   //void deletPoint(int x, int y); //Пока не нужна
   bool isPosibleSprouts(int x, int y);
@@ -34,20 +41,23 @@ private:
   void cancel();
   void safe();
   void initCosts(std::vector<int>& costs, int x, int y, Matrix &m);
+
+  int MINIMAX(Matrix &m, QList<GamePoint> points, int line, int deph, int alpha, int beta);
+  QList<PosibleMove> generatePosibleMoves(Matrix &m, QList<GamePoint> points);
 protected:
   void paintEvent(QPaintEvent *);
   void mousePressEvent(QMouseEvent *);
   void mouseMoveEvent(QMouseEvent *);
 
 private:
+  int lineCount = 1;
   Matrix *board_matrix;
   QStack<QPoint> stkForCancel;
   bool clicked = false;
   bool partSetPointFlag = false;
-  int lineCount = 1;
-  AiEngine bot;
   QList<GamePoint*> points;
   GamePoint *startP, *finishP;
+  int aiLevel;
 };
 
 #endif // BOARD_H

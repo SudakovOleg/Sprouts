@@ -12,7 +12,7 @@
 board::board(QWidget *parent, int board_size, int ai_lvl)
   : QWidget(parent)
 {
-  Q_UNUSED(ai_lvl);
+  aiLevel = ai_lvl;
   //Включаем отслеживание мыши для рисования
   this->setMouseTracking(true);
   //Создаем матрицу и заполняем начальными данными
@@ -74,8 +74,10 @@ void board::addPoint(int x, int y, int sprouts)
 }
 
 //Метод проверки победы
-bool board::checkWin()
+bool board::checkWin(Matrix *m)
 {
+  //Создаем временную матрицу
+  Matrix tmpM = *m;
   //Находим две доступные для хода точки
   for(auto elm : points)
   {
@@ -92,7 +94,7 @@ bool board::checkWin()
               //Если нашли пробуем строить путь между точками
               if(*board_matrix->take(elm->point.x() + dX,elm->point.y() + dY) == EMPTY_CELL)
               {
-                if(canCreatePath(elm->point.x() + dX,elm->point.y() + dY, *board_matrix, finElm))
+                if(canCreatePath(elm->point.x() + dX,elm->point.y() + dY, tmpM, finElm))
                   return false;
               }
             }
@@ -104,7 +106,7 @@ bool board::checkWin()
 }
 
 //Метод построения пути
-bool board::canCreatePath(int x, int y,Matrix const &m, GamePoint *FinishPoint, int death)
+bool board::canCreatePath(int x, int y,Matrix &m, GamePoint *FinishPoint, int death)
 {
   //Если мы у точки
   if(findPoint(x,y) == FinishPoint)
@@ -113,9 +115,6 @@ bool board::canCreatePath(int x, int y,Matrix const &m, GamePoint *FinishPoint, 
   //Если глубина больше 2*размер поля
   if(death > 400)
     return false;
-
-  //Создаем временную матрицу
-  Matrix tmpM = m;
 
   //Инициализируем оценки на основе расстояний до точки по обеим осям
   std::vector<int> costs(6);
@@ -127,7 +126,7 @@ bool board::canCreatePath(int x, int y,Matrix const &m, GamePoint *FinishPoint, 
   costs[5] = -costs[0]; //Влево
 
   //Проводим окончательный расчет оценок смотря на припятствия
-  initCosts(costs, x, y, tmpM);
+  initCosts(costs, x, y, m);
 
   //Ищем максимальную оценку
   int max = -100;
@@ -145,53 +144,53 @@ bool board::canCreatePath(int x, int y,Matrix const &m, GamePoint *FinishPoint, 
   {
     case 2: //Вверх
       {
-        if(y - 1 > 0 && *tmpM.take(x,y - 1) == 0)
+        if(y - 1 > 0 && *m.take(x,y - 1) == 0)
         {
-          *tmpM.take(x, y - 1) = lineCount;
-          if(canCreatePath(x,y - 1,tmpM,FinishPoint, death + 1))
+          *m.take(x, y - 1) = lineCount;
+          if(canCreatePath(x,y - 1,m,FinishPoint, death + 1))
           {
             return true;
           }
-          *tmpM.take(x, y - 1) = 0;
+          *m.take(x, y - 1) = 0;
           break;
         }
       }
     case 3: //Вниз
       {
-        if(y + 1 < tmpM.size().height() && *tmpM.take(x,y + 1) == 0)
+        if(y + 1 < m.size().height() && *m.take(x,y + 1) == 0)
         {
-          *tmpM.take(x, y + 1) = lineCount;
-          if(canCreatePath(x,y + 1,tmpM,FinishPoint, death + 1))
+          *m.take(x, y + 1) = lineCount;
+          if(canCreatePath(x,y + 1,m,FinishPoint, death + 1))
           {
             return true;
           }
-          *tmpM.take(x, y + 1) = 0;
+          *m.take(x, y + 1) = 0;
           break;
         }
       }
     case 4:  //Вправо
       {
-        if(x + 1 < tmpM.size().width() && *tmpM.take(x + 1,y) == 0)
+        if(x + 1 < m.size().width() && *m.take(x + 1,y) == 0)
         {
-          *tmpM.take(x + 1,y) = lineCount;
-          if(canCreatePath(x + 1,y,tmpM,FinishPoint, death + 1))
+          *m.take(x + 1,y) = lineCount;
+          if(canCreatePath(x + 1,y,m,FinishPoint, death + 1))
           {
             return true;
           }
-          *tmpM.take(x + 1,y) = 0;
+          *m.take(x + 1,y) = 0;
           break;
         }
       }
     case 5: //Влево
       {
-        if(x - 1 > 0 && *tmpM.take(x - 1,y) == 0)
+        if(x - 1 > 0 && *m.take(x - 1,y) == 0)
         {
-          *tmpM.take(x - 1, y) = lineCount;
-          if(canCreatePath(x - 1,y,tmpM,FinishPoint, death + 1))
+          *m.take(x - 1, y) = lineCount;
+          if(canCreatePath(x - 1,y,m,FinishPoint, death + 1))
           {
             return true;
           }
-          *tmpM.take(x - 1, y - 1) = 0;
+          *m.take(x - 1, y - 1) = 0;
           break;
         }
       }
@@ -243,9 +242,12 @@ void board::cancel()
   }
   //Очищаем данные для отмены
   stkForCancel.clear();
-  //Снимаем нажатие
-  clicked = false;
-  lineCount -= 1;
+  if(clicked)
+  {
+    //Снимаем нажатие
+    clicked = false;
+    lineCount -= 1;
+  }
   update();
 }
 
@@ -337,7 +339,7 @@ void board::mousePressEvent(QMouseEvent *event)
           stkForCancel.clear();
           partSetPointFlag = false;
           update();
-          if(checkWin()) QMessageBox::information(this,"Win", "Win");
+          if(checkWin(board_matrix)) QMessageBox::information(this,"Win", "Win");
           return;
         }
     update();
@@ -371,4 +373,101 @@ void board::mouseMoveEvent(QMouseEvent *event)
     else
       return;
   }
+}
+
+QList<PosibleMove> board::generatePosibleMoves(Matrix &m,QList<GamePoint> _points)
+{
+  QList<PosibleMove> moves;
+  for(auto elm : _points)
+  {
+    if(elm.sproutsCount < 3)
+    {
+      for(auto finElm : _points)
+      {
+        if(&elm != &finElm && finElm.sproutsCount < 3)
+        {
+          bool breakeFlag = false;
+          //Ищем неприсоединеный край точки старта
+          for(int dX(-3); dX < 4; dX++)
+          {
+            for (int dY(-3);dY < 4; dY++)
+            {
+              Matrix tmpM = m;
+              //Если нашли пробуем строить путь между точками
+              if(*board_matrix->take(elm.point.x() + dX,elm.point.y() + dY) == EMPTY_CELL)
+              {
+                if(canCreatePath(elm.point.x() + dX,elm.point.y() + dY, tmpM, &finElm))
+                {
+                  breakeFlag = true;
+
+                  elm.sproutsCount++;
+                  finElm.sproutsCount++;
+
+                  PosibleMove move;
+                  move.m = tmpM;
+                  move.points = _points;
+                  moves.push_back(move);
+                }
+              }
+            }
+            if(breakeFlag)
+              break;
+          }
+        }
+      }
+    }
+  }
+  return moves;
+}
+
+int board::MINIMAX(Matrix &m, QList<GamePoint> _points, int line, int deph, int alpha, int beta)
+{
+  //Если терминальная вершина
+  if(deph > aiLevel || checkWin(&m))
+    return deph%2 == 0 ? 1 : -1;
+
+  //Генерация возможных ходов
+  QList<PosibleMove> posibleMoves(generatePosibleMoves(m,_points));
+  //Инициализация переменной для рекорда
+  int score;
+  deph%2 == 0 ? score = alpha : score = beta;
+  PosibleMove *bestmove;
+  //Произведение хода и отправка алгоритма в рекурсию
+  for(auto move : posibleMoves)
+  {
+    //Рекурсионо определяем оенку хода
+    int new_score = MINIMAX(move.m, move.points, line + 1, deph + 1, alpha, beta);
+
+    //Если макс
+    if(new_score > score && deph%2 == 0)
+    {
+      score = new_score;
+      bestmove = &move;
+    }
+    //Если мин
+    else if(new_score <= score && deph%2 == 1)
+    {
+      score = new_score;
+      bestmove = &move;
+    }
+
+    //Альфа бета отсичение
+    if(deph%2 == 0)
+      alpha = qMax(alpha,score);
+    else
+      beta = qMax(beta,score);
+
+    //Условие прирывания рекурсии
+    if(beta < alpha)
+      break;
+  }
+
+  //Если глубина нулевая копирование матрицы с новым ходом
+  if(deph == 0)
+  {
+    m = bestmove->m;
+    //Конвертирование и запоминание списка
+  }
+  //Возврат рекорда
+  return score;
 }
